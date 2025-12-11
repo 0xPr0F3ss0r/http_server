@@ -12,9 +12,9 @@
 // define socket
 int socketSP, newSocket;
 
-//define some functions
+// define some functions
 void MakeNewConnectionThread(int newSocket);
-void* HandleData(void* newSocket);
+void *HandleData(void *newSocket);
 // define structure for our socket connection
 struct sockaddr_in serve_add;
 struct sockaddr_in client_add;
@@ -50,16 +50,19 @@ int main(int argc, char *argv[])
             printf("Error on listning incoming connection.. !");
         }
 
-        // accept to incomming connections from clients
-        newSocket = accept(socketSP, (struct sockaddr *)&client_add, &addr_size);
-        if (newSocket < 0)
+        while (1)
         {
-            printf("error in accept ..!");
-            return 1;
-        };
+            // accept to incomming connections from clients
+            newSocket = accept(socketSP, (struct sockaddr *)&client_add, &addr_size);
+            if (newSocket < 0)
+            {
+                printf("error in accept ..!");
+                return 1;
+            };
 
-        // create new thread to handle new connetion client
-        MakeNewConnectionThread(newSocket);
+            // create new thread to handle new connetion client
+            MakeNewConnectionThread(newSocket);
+        }
     }
     else
     {
@@ -67,7 +70,6 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-   
     return 0;
 }
 
@@ -77,7 +79,8 @@ void MakeNewConnectionThread(int newSocket)
     pthread_t thread1;
 
     int thread = pthread_create(&thread1, NULL, HandleData, &newSocket);
-    if(thread ==0){
+    if (thread == 0)
+    {
         printf("thread joined ..\n");
     }
     pthread_join(thread1, NULL);
@@ -85,12 +88,13 @@ void MakeNewConnectionThread(int newSocket)
     close(newSocket);
 }
 
-void* HandleData(void* newSocket)
-{ 
-    int NewSocket = *(int*)(newSocket);
+void *HandleData(void *newSocket)
+{    
+    //get the value in the pointer address of newSocket
+    int NewSocket = *(int *)(newSocket);
     // data buffer
     char buffer[1024] = {0};
-    
+
     int bytes = read(NewSocket, buffer, sizeof(buffer));
     if (bytes < 0)
     {
@@ -103,6 +107,5 @@ void* HandleData(void* newSocket)
     // print our data
     printf("data is: %s\n", buffer);
 
-     
     return NULL;
 }
