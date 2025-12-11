@@ -6,16 +6,18 @@
 #include <sys/types.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
+#include <pthread.h>
+#include <stdint.h>
 
 // define socket
 int socketSP, newSocket;
+
+//define some functions
+void MakeNewConnectionThread(int newSocket);
+void* HandleData(void* newSocket);
 // define structure for our socket connection
 struct sockaddr_in serve_add;
 struct sockaddr_in client_add;
-
-// data buffer
-char buffer[1024] = {0};
-
 
 socklen_t addr_size = sizeof(client_add);
 
@@ -37,7 +39,7 @@ int main(int argc, char *argv[])
 
         if (bind(socketSP, (struct sockaddr *)&serve_add, sizeof(serve_add)) < 0)
         {
-            printf("Error in Binding</spane>n");
+            perror("Error in Binding\n");
             exit(1);
         };
         // listen to incoming connection
@@ -56,20 +58,8 @@ int main(int argc, char *argv[])
             return 1;
         };
 
-        // start sending and receive data
-
-        int bytes = read(newSocket, buffer, sizeof(buffer));
-        if (bytes < 0)
-        {
-            perror("read error");
-        }
-        else if (bytes == 0)
-        {
-            printf("client disconnected\n");
-        }
-
-        // print our data
-        printf("data is: %s\n", buffer);
+        // create new thread to handle new connetion client
+        MakeNewConnectionThread(newSocket);
     }
     else
     {
@@ -77,7 +67,42 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    // close the socket
-    close(socketSP);
+   
     return 0;
+}
+
+void MakeNewConnectionThread(int newSocket)
+{
+    printf("start make new connection thread \n");
+    pthread_t thread1;
+
+    int thread = pthread_create(&thread1, NULL, HandleData, &newSocket);
+    if(thread ==0){
+        printf("thread joined ..\n");
+    }
+    pthread_join(thread1, NULL);
+    // close the socket
+    close(newSocket);
+}
+
+void* HandleData(void* newSocket)
+{ 
+    int NewSocket = *(int*)(newSocket);
+    // data buffer
+    char buffer[1024] = {0};
+    
+    int bytes = read(NewSocket, buffer, sizeof(buffer));
+    if (bytes < 0)
+    {
+        perror("read error");
+    }
+    else if (bytes == 0)
+    {
+        printf("client disconnected\n");
+    }
+    // print our data
+    printf("data is: %s\n", buffer);
+
+     
+    return NULL;
 }
