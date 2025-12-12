@@ -15,7 +15,6 @@ int socketSP, newSocket;
 
 // define some functions
 void *MakeNewConnectionThread(void *newSocket);
-void HandleData(int newSocket);
 // define structure for our socket connection
 struct sockaddr_in serve_add;
 struct sockaddr_in client_add;
@@ -91,7 +90,6 @@ void *MakeNewConnectionThread(void *newSocket)
     int NewSocket = *(int *)(newSocket);
     free(newSocket);
     printf("start make new connection thread \n");
-    // pthread_t thread1;
 
     // data buffer
     char buffer[1024];
