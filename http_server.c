@@ -8,13 +8,14 @@
 #include <netinet/in.h>
 #include <pthread.h>
 #include <stdint.h>
-
+#include <ctype.h>
+#include <ctype.h>
 // define socket
 int socketSP, newSocket;
 
 // define some functions
-void MakeNewConnectionThread(int newSocket);
-void *HandleData(void *newSocket);
+void *MakeNewConnectionThread(void *newSocket);
+void HandleData(int newSocket);
 // define structure for our socket connection
 struct sockaddr_in serve_add;
 struct sockaddr_in client_add;
@@ -26,7 +27,7 @@ int main(int argc, char *argv[])
     socketSP = socket(AF_INET, SOCK_STREAM, 0);
     if (socketSP != -1)
     {
-        // zero structure out ss
+        // zero structure out
         bzero(&serve_add, sizeof(serve_add));
         bzero(&client_add, sizeof(client_add));
 
@@ -52,16 +53,28 @@ int main(int argc, char *argv[])
 
         while (1)
         {
-            // accept to incomming connections from clients
-            newSocket = accept(socketSP, (struct sockaddr *)&client_add, &addr_size);
+
+            //  accept to incomming connections from clients
+            int newSocket = accept(socketSP, (struct sockaddr *)&client_add, &addr_size);
+
             if (newSocket < 0)
             {
                 printf("error in accept ..!");
                 return 1;
             };
 
-            // create new thread to handle new connetion client
-            MakeNewConnectionThread(newSocket);
+            // create new thread and reserve memory for it to handle new connetion client
+            pthread_t thread1;
+            int *client = (int *)malloc(sizeof(int));
+            if (!client)
+            {
+                perror("address not reserved correctly");
+
+                close(newSocket);
+                continue;
+            }
+            *client = newSocket;
+            int thread = pthread_create(&thread1, NULL, MakeNewConnectionThread, client);
         }
     }
     else
@@ -73,27 +86,15 @@ int main(int argc, char *argv[])
     return 0;
 }
 
-void MakeNewConnectionThread(int newSocket)
+void *MakeNewConnectionThread(void *newSocket)
 {
-    printf("start make new connection thread \n");
-    pthread_t thread1;
-
-    int thread = pthread_create(&thread1, NULL, HandleData, &newSocket);
-    if (thread == 0)
-    {
-        printf("thread joined ..\n");
-    }
-    pthread_join(thread1, NULL);
-    // close the socket
-    close(newSocket);
-}
-
-void *HandleData(void *newSocket)
-{    
-    //get the value in the pointer address of newSocket
     int NewSocket = *(int *)(newSocket);
+    free(newSocket);
+    printf("start make new connection thread \n");
+    // pthread_t thread1;
+
     // data buffer
-    char buffer[1024] = {0};
+    char buffer[1024];
 
     int bytes = read(NewSocket, buffer, sizeof(buffer));
     if (bytes < 0)
@@ -104,8 +105,8 @@ void *HandleData(void *newSocket)
     {
         printf("client disconnected\n");
     }
-    // print our data
-    printf("data is: %s\n", buffer);
 
+    printf("data %s", buffer);
+    close(NewSocket);
     return NULL;
 }
