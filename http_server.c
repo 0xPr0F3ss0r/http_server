@@ -33,7 +33,7 @@ int main(int argc, char *argv[])
         // match the socket() call with IPV4
         serve_add.sin_family = AF_INET;
         // specifique port to listen on
-        serve_add.sin_port = htons(5100);
+        serve_add.sin_port = htons(8080);
         // allow the server to accept connetion of client in any interface
         serve_add.sin_addr.s_addr = htonl(INADDR_ANY);
 
@@ -103,30 +103,68 @@ void *MakeNewConnectionThread(void *newSocket)
     {
         printf("client disconnected\n");
     }
-    char html[] =
-        "HTTP/1.1 200 OK\r\n"
-        "Content-Type: text/html\r\n"
-        "Content-Length: 98\r\n"
-        "\r\n"
-        "<!DOCTYPE html>"
-        "<html lang=\"en\">"
-        "<head><meta charset=\"UTF-8\"><title>Simple Server Page</title></head>"
-        "<body><h1>Welcome to my server!</h1><p>This is a very simple HTML page.</p></body>"
-        "</html>";
 
+   //make end in  request of client
     buffer[bytes] = '\0';
-    char text[] = "hello";
-    printf("this the buffer %s", buffer);
-    strtok(buffer, "\r\n");
-    if (strcmp(buffer, "website") != NULL)
+
+    // read server content file
+    FILE *file_ptr;
+    file_ptr = fopen("server_content.html", "r");
+
+    // check file status
+    if (file_ptr == NULL)
     {
-        send(NewSocket, html, sizeof(html), 0);
+        printf("Error Occurred While creating a "
+               "file !");
+        exit(1);
     }
-    else
-    {
-        printf("not \n");
+    // // get the size of file that I want to read
+
+    // Move to end of file
+    fseek(file_ptr, 0, SEEK_END);
+
+    // Get current position (number of bytes from start)
+    long filesize = ftell(file_ptr);
+
+    // Move back to start to read file
+    fseek(file_ptr, 0, SEEK_SET);
+     
+    //reserve space for the content of file based on the returned length
+    //char file_content[filesize];
+    
+    //response contain the server content and the header so we add extra size which is 512
+    char response[filesize+512];
+    
+    //size of file
+    char file_content[filesize];
+    
+    // generate response and store it
+    size_t f_size =  fread(file_content,1,filesize, file_ptr);
+    if(f_size<filesize){
+        fprintf(stderr, "File read incomplete\n");
+        close(socketSP);
     }
-    printf("data %s\n", buffer);
+
+   
+    //make end to avoid buffer overflow
+    file_content[f_size] = '\0';
+    int read = snprintf(response, sizeof(response),
+             "HTTP/1.1 200 OK\r\n"
+             "Content-Type: text/html\r\n"
+             "Content-Length: %zu\r\n"
+             "\r\n"
+             "%s",
+             f_size,
+            file_content);
+
+  if (read < 0){
+    printf("wrong when read\n");
+  }
+    //send data to client
+   int number_sent =  send(NewSocket, response,strlen(response), 0);
+
+     //close the file opened and the socket of client
+    fclose(file_ptr);
     close(NewSocket);
     return NULL;
 }
