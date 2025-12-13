@@ -103,8 +103,30 @@ void *MakeNewConnectionThread(void *newSocket)
     {
         printf("client disconnected\n");
     }
+    char html[] =
+        "HTTP/1.1 200 OK\r\n"
+        "Content-Type: text/html\r\n"
+        "Content-Length: 98\r\n"
+        "\r\n"
+        "<!DOCTYPE html>"
+        "<html lang=\"en\">"
+        "<head><meta charset=\"UTF-8\"><title>Simple Server Page</title></head>"
+        "<body><h1>Welcome to my server!</h1><p>This is a very simple HTML page.</p></body>"
+        "</html>";
 
-    printf("data %s", buffer);
+    buffer[bytes] = '\0';
+    char text[] = "hello";
+    printf("this the buffer %s", buffer);
+    strtok(buffer, "\r\n");
+    if (strcmp(buffer, "website") != NULL)
+    {
+        send(NewSocket, html, sizeof(html), 0);
+    }
+    else
+    {
+        printf("not \n");
+    }
+    printf("data %s\n", buffer);
     close(NewSocket);
     return NULL;
 }
