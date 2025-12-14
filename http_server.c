@@ -94,77 +94,87 @@ void *MakeNewConnectionThread(void *newSocket)
     // data buffer
     char buffer[1024];
 
-    int bytes = read(NewSocket, buffer, sizeof(buffer));
-    if (bytes < 0)
+    int bytes = read(NewSocket, buffer, sizeof(buffer) - 1);
+    if (bytes <= 0)
     {
-        perror("read error");
-    }
-    else if (bytes == 0)
-    {
-        printf("client disconnected\n");
+        if (bytes < 0) perror("read error");
+        else printf("client disconnected\n");
+        close(NewSocket);
+        return NULL;
     }
 
-   //make end in  request of client
+    // make end in string request of client
     buffer[bytes] = '\0';
 
-    // read server content file
-    FILE *file_ptr;
-    file_ptr = fopen("server_content.html", "r");
+    char method[8], path[256];
+    sscanf(buffer, "%7s %255s", method, path);
 
-    // check file status
-    if (file_ptr == NULL)
+    char file_to_send[512];
+    if (strcmp(path, "/") == 0)
     {
-        printf("Error Occurred While creating a "
-               "file !");
-        exit(1);
+        // If the root is requested, serve the main HTML file
+        snprintf(file_to_send, sizeof(file_to_send), "server_content/server_content.html");
     }
-    // // get the size of file that I want to read
-
-    // Move to end of file
-    fseek(file_ptr, 0, SEEK_END);
-
-    // Get current position (number of bytes from start)
-    long filesize = ftell(file_ptr);
-
-    // Move back to start to read file
-    fseek(file_ptr, 0, SEEK_SET);
-     
-    //reserve space for the content of file based on the returned length
-    //char file_content[filesize];
-    
-    //response contain the server content and the header so we add extra size which is 512
-    char response[filesize+512];
-    
-    //size of file
-    char file_content[filesize];
-    
-    // generate response and store it
-    size_t f_size =  fread(file_content,1,filesize, file_ptr);
-    if(f_size<filesize){
-        fprintf(stderr, "File read incomplete\n");
-        close(socketSP);
+    else
+    {
+        // For any other request, construct the path relative to the server_content directory
+        snprintf(file_to_send, sizeof(file_to_send), "server_content%s", path);
     }
 
-   
-    //make end to avoid buffer overflow
-    file_content[f_size] = '\0';
-    int read = snprintf(response, sizeof(response),
-             "HTTP/1.1 200 OK\r\n"
-             "Content-Type: text/html\r\n"
-             "Content-Length: %zu\r\n"
-             "\r\n"
-             "%s",
-             f_size,
-            file_content);
+    // Determine content type from file extension
+    char *ext = strrchr(file_to_send, '.');
+    char *content_type = "text/plain"; 
+    if (ext != NULL)
+    {
+        if (strcmp(ext, ".html") == 0) content_type = "text/html";
+        else if (strcmp(ext, ".css") == 0) content_type = "text/css";
+        else if (strcmp(ext, ".js") == 0) content_type = "application/javascript";
+    }
 
-  if (read < 0){
-    printf("wrong when read\n");
-  }
-    //send data to client
-   int number_sent =  send(NewSocket, response,strlen(response), 0);
+    FILE *fp = fopen(file_to_send, "rb");
+    if (!fp)
+    {
+        // File not found, send 404 response
+        const char *not_found_response = "HTTP/1.1 404 Not Found\r\nContent-Length: 9\r\n\r\nNot Found";
+        send(NewSocket, not_found_response, strlen(not_found_response), 0);
+        fprintf(stderr, "File not found: %s\n", file_to_send);
+    }
+    else
+    {
+        // read the file size and generate the response
+        fseek(fp, 0, SEEK_END);
+        long filesize = ftell(fp);
+        fseek(fp, 0, SEEK_SET);
 
-     //close the file opened and the socket of client
-    fclose(file_ptr);
+        char *file_content = (char *)malloc(filesize);
+        if (!file_content)
+        {
+            perror("Failed to allocate memory for file content");
+            fclose(fp);
+            close(NewSocket);
+            return NULL;
+        }
+
+        fread(file_content, 1, filesize, fp);
+        fclose(fp);
+
+        char headers[512];
+        int header_len = snprintf(headers, sizeof(headers),
+                                  "HTTP/1.1 200 OK\r\n"
+                                  "Content-Type: %s\r\n"
+                                  "Content-Length: %ld\r\n"
+                                  "Connection: close\r\n"
+                                  "\r\n",
+                                  content_type, filesize);
+
+        // Send headers and content
+        send(NewSocket, headers, header_len, 0);
+        send(NewSocket, file_content, filesize, 0);
+
+        free(file_content);
+    }
+
+    // Close the socket for this client
     close(NewSocket);
     return NULL;
 }
