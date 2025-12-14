@@ -4,7 +4,7 @@ This project is a simple HTTP server written from scratch that handles requests 
 
 The server hosts a small portfolio-style website (content partially generated with AI). When the server program is started, it creates a dedicated thread and begins listening for incoming connections on a specified port.
 
-When a client accesses the server—by visiting http://localhost in a browser or sending an HTTP request via curl—the server:
+When a client accesses the server—by visiting http://localhost:8080 in a browser or sending an HTTP request via curl—the server:
 
 1. Accepts the incoming connection using the socket accept() function.
 
